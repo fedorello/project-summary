@@ -1,0 +1,27 @@
+output_dir: summaries/
+
+directories:
+  - path: .
+    extensions:
+      - .py
+      - .yml
+      - .yaml
+    exclude_dirs:
+      - .venv
+      - __pycache__
+      - .git
+      - alembic/versions
+    max_file_size: 5242880  # 5MB
+
+  - path: src/
+    extensions:
+      - .py
+    exclude_dirs:
+      - __pycache__
+    max_file_size: 1048576  # 1MB
+
+  - path: docs/
+    extensions:
+      - .md
+      - .rst
+    max_file_size: 1048576  # 1MB

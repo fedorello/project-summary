@@ -1,0 +1,653 @@
+1. Project Structure:
+
+project-summary/
+├── CHANGELOG.md
+├── test_run.py
+├── pyproject.toml
+├── README.md
+├── project_summary_config.yaml
+├── test_output/
+├── tests/
+│   ├── test_core.py
+│   ├── __init__.py
+│   ├── test_config.py
+├── docs/
+│   ├── README.md
+├── examples/
+│   ├── project_summary_config.yaml
+├── test_project/
+│   ├── tests/
+│   │   ├── test_main.py
+│   ├── docs/
+│   │   ├── readme.md
+│   ├── src/
+│   │   ├── utils.py
+│   │   ├── main.py
+├── src/
+│   ├── project_summary/
+│   │   ├── config.py
+│   │   ├── __init__.py
+│   │   ├── core.py
+│   │   ├── cli.py
+
+
+2. File Contents:
+
+File 1: CHANGELOG.md
+--------------------------------------------------
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] - 2024-02-13
+
+### Added
+- Initial release
+- Basic project structure analysis
+- YAML configuration support
+- File content extraction
+- Directory filtering
+- Size limits
+- Gitignore support
+
+==================================================
+
+File 2: test_run.py
+--------------------------------------------------
+import logging
+from pathlib import Path
+from project_summary.config import DirectoryConfig
+from project_summary.core import create_project_summary
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
+# Тестовая конфигурация
+config = {
+    'path': '.',
+    'extensions': ['.py', '.md', '.toml', '.yaml', '.yml'],
+    'exclude_dirs': ['__pycache__', '.git', 'venv', '.venv'],
+    'exclude_files': [],
+    'max_file_size': 1048576  # 1MB
+}
+
+# Создаем директорию для выходных файлов
+output_dir = Path('test_output')
+output_dir.mkdir(exist_ok=True)
+
+# Создаем и запускаем
+dir_config = DirectoryConfig(config)
+create_project_summary(dir_config, output_dir)
+
+==================================================
+
+File 3: pyproject.toml
+--------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "project-summary"
+version = "0.1.0"
+description = "Tool for generating project structure and content summaries"
+readme = "README.md"
+authors = [{ name = "Fedorello", email = "fedorstartup@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["documentation", "project", "summary", "structure", "analysis"]
+dependencies = [
+    "pyyaml>=6.0",
+    "pathlib>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/fedorello/project-summary"
+Repository = "https://github.com/fedorello/project-summary.git"
+Issues = "https://github.com/fedorello/project-summary/issues"
+Changelog = "https://github.com/fedorello/project-summary/blob/main/CHANGELOG.md"
+
+[project.scripts]
+project-summary = "project_summary.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/project_summary"]
+
+[tool.hatch.version]
+path = "src/project_summary/__init__.py"
+
+==================================================
+
+File 4: README.md
+--------------------------------------------------
+# project-summary
+A powerful Python tool for generating comprehensive project documentation and codebase summaries. It automatically creates structured reports of your project's files and directories, making it easier to understand and document large codebases.
+
+
+==================================================
+
+File 5: project_summary_config.yaml
+--------------------------------------------------
+output_dir: summaries/
+
+directories:
+  - path: .
+    extensions:
+      - .py
+      - .md
+    exclude_dirs:
+      - __pycache__
+    max_file_size: 1048576  # 1MB
+
+==================================================
+
+File 6: tests/test_core.py
+--------------------------------------------------
+"""Tests for core functionality."""
+
+import pytest
+from pathlib import Path
+from project_summary.core import should_include_file, should_exclude_dir
+from project_summary.config import DirectoryConfig
+
+@pytest.fixture
+def basic_config():
+    """Basic configuration for tests."""
+    return DirectoryConfig({
+        'extensions': ['.py', '.yml'],
+        'exclude_dirs': ['__pycache__', '.git'],
+        'exclude_files': ['secret.txt']
+    })
+
+def test_should_include_file(basic_config, tmp_path):
+    """Test file inclusion logic."""
+    python_file = tmp_path / "test.py"
+    python_file.touch()
+    
+    text_file = tmp_path / "test.txt"
+    text_file.touch()
+    
+    assert should_include_file(python_file, basic_config, [], tmp_path)
+    assert not should_include_file(text_file, basic_config, [], tmp_path)
+
+==================================================
+
+File 7: tests/__init__.py
+--------------------------------------------------
+"""Tests for project-summary package."""
+
+==================================================
+
+File 8: tests/test_config.py
+--------------------------------------------------
+"""Tests for configuration handling."""
+
+import pytest
+from pathlib import Path
+from project_summary.config import DirectoryConfig, load_config
+
+def test_directory_config_defaults():
+    """Test DirectoryConfig default values."""
+    config = DirectoryConfig({})
+    assert config.path == '.'
+    assert config.extensions == set()
+    assert config.files == set()
+    assert config.dirs == set()
+    assert config.exclude_dirs == set()
+    assert config.exclude_files == set()
+    assert config.max_file_size == 10 * 1024 * 1024
+    assert config.output_name is None
+
+def test_directory_config_extensions():
+    """Test extension normalization."""
+    config = DirectoryConfig({
+        'extensions': ['py', '.py', 'YML', '.YAML']
+    })
+    assert config.extensions == {'.py', '.yml', '.yaml'}
+
+==================================================
+
+File 9: docs/README.md
+--------------------------------------------------
+
+
+==================================================
+
+File 10: examples/project_summary_config.yaml
+--------------------------------------------------
+output_dir: summaries/
+
+directories:
+  - path: .
+    extensions:
+      - .py
+      - .yml
+      - .yaml
+    exclude_dirs:
+      - .venv
+      - __pycache__
+      - .git
+      - alembic/versions
+    max_file_size: 5242880  # 5MB
+
+  - path: src/
+    extensions:
+      - .py
+    exclude_dirs:
+      - __pycache__
+    max_file_size: 1048576  # 1MB
+
+  - path: docs/
+    extensions:
+      - .md
+      - .rst
+    max_file_size: 1048576  # 1MB
+
+==================================================
+
+File 11: test_project/tests/test_main.py
+--------------------------------------------------
+
+
+==================================================
+
+File 12: test_project/docs/readme.md
+--------------------------------------------------
+
+
+==================================================
+
+File 13: test_project/src/utils.py
+--------------------------------------------------
+
+
+==================================================
+
+File 14: test_project/src/main.py
+--------------------------------------------------
+
+
+==================================================
+
+File 15: src/project_summary/config.py
+--------------------------------------------------
+"""Configuration handling for Project Summary."""
+
+from pathlib import Path
+from typing import Set, Optional, Dict, Any
+import yaml
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DirectoryConfig:
+    """Configuration for a single directory to process."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize directory configuration.
+        
+        Args:
+            config: Dictionary with configuration parameters
+        """
+        self.path = config.get('path', '.')
+        self.extensions: Set[str] = set(
+            ext.lower() if ext.startswith('.') else f'.{ext.lower()}'
+            for ext in config.get('extensions', [])
+        )
+        self.files: Set[str] = set(config.get('files', []))
+        self.dirs: Set[str] = set(config.get('dirs', []))
+        self.exclude_dirs: Set[str] = set(config.get('exclude_dirs', []))
+        self.exclude_files: Set[str] = set(config.get('exclude_files', []))
+        self.max_file_size: int = config.get('max_file_size', 10 * 1024 * 1024)  # 10MB default
+        self.output_name: Optional[str] = config.get('output_name', None)
+
+    def __str__(self) -> str:
+        """Return string representation of configuration."""
+        return (
+            f"DirectoryConfig(path='{self.path}', "
+            f"extensions={self.extensions}, "
+            f"files={self.files}, "
+            f"dirs={self.dirs})"
+        )
+
+def load_config(config_path: Path) -> Dict[str, Any]:
+    """
+    Load configuration from YAML file.
+    
+    Args:
+        config_path: Path to configuration file
+        
+    Returns:
+        Dictionary with configuration
+        
+    Raises:
+        FileNotFoundError: If configuration file doesn't exist
+        yaml.YAMLError: If configuration file is invalid
+    """
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+            if not isinstance(config, dict):
+                raise yaml.YAMLError("Configuration must be a dictionary")
+            return config
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found: {config_path}")
+        raise
+    except yaml.YAMLError as e:
+        logger.error(f"Invalid YAML in configuration file: {e}")
+        raise
+
+==================================================
+
+File 16: src/project_summary/__init__.py
+--------------------------------------------------
+"""Project Summary - tool for generating project structure and content summaries."""
+
+from .core import create_project_summary
+from .config import DirectoryConfig, load_config
+
+__version__ = "0.1.0"
+__all__ = ['create_project_summary', 'DirectoryConfig', 'load_config']
+
+==================================================
+
+File 17: src/project_summary/core.py
+--------------------------------------------------
+"""Core functionality for project summary generation."""
+
+import os
+import logging
+import fnmatch
+from pathlib import Path
+from typing import List, Set
+
+from .config import DirectoryConfig
+
+logger = logging.getLogger(__name__)
+
+def parse_gitignore(gitignore_path: Path) -> List[str]:
+    """Parse .gitignore file and return list of patterns."""
+    if not gitignore_path.exists():
+        return []
+    with open(gitignore_path, 'r') as f:
+        return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+
+def should_ignore(path: Path, gitignore_patterns: List[str], root: Path) -> bool:
+    """Check if path should be ignored based on gitignore patterns."""
+    rel_path = os.path.relpath(path, root)
+    for pattern in gitignore_patterns:
+        if pattern.endswith('/'):
+            if rel_path.startswith(pattern) or fnmatch.fnmatch(rel_path + '/', pattern):
+                return True
+        elif fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(path.name, pattern):
+            return True
+    return False
+
+def should_include_file(file_path: Path, dir_config: DirectoryConfig, 
+                       gitignore_patterns: List[str], root: Path) -> bool:
+    """Determine if file should be included in summary."""
+    if not file_path.exists():
+        return False
+        
+    if should_ignore(file_path, gitignore_patterns, root):
+        return False
+        
+    if file_path.stat().st_size > dir_config.max_file_size:
+        logger.warning(f"Skipping {file_path}: file size exceeds limit")
+        return False
+
+    if file_path.name in dir_config.exclude_files:
+        return False
+
+    rel_path = os.path.relpath(file_path, root)
+    
+    if rel_path in dir_config.files:
+        return True
+        
+    if dir_config.dirs:
+        for dir_path in dir_config.dirs:
+            if rel_path.startswith(dir_path):
+                return file_path.suffix.lower() in dir_config.extensions
+        return False
+    
+    return file_path.suffix.lower() in dir_config.extensions
+
+def should_exclude_dir(dir_path: Path, dir_config: DirectoryConfig, 
+                      gitignore_patterns: List[str], root: Path) -> bool:
+    """Determine if directory should be excluded."""
+    if should_ignore(dir_path, gitignore_patterns, root):
+        return True
+    return any(excluded in str(dir_path) for excluded in dir_config.exclude_dirs)
+
+def get_file_tree(startpath: Path, dir_config: DirectoryConfig, 
+                  gitignore_patterns: List[str]) -> List[str]:
+    """Generate tree-like structure of included files."""
+    tree = []
+    
+    if dir_config.dirs:
+        processed_dirs: Set[str] = set()
+        all_files = get_all_files(startpath, dir_config, gitignore_patterns)
+        rel_files = sorted(os.path.relpath(f, startpath) for f in all_files)
+        
+        for file_path in rel_files:
+            parts = Path(file_path).parts
+            current_path = startpath
+            
+            for i, part in enumerate(parts[:-1]):
+                current_path = current_path / part
+                dir_level = i
+                if str(current_path) not in processed_dirs:
+                    indent = '│   ' * dir_level + '├── ' if dir_level > 0 else ''
+                    tree.append(f"{indent}{part}/")
+                    processed_dirs.add(str(current_path))
+            
+            file_level = len(parts) - 1
+            indent = '│   ' * file_level + '├── '
+            tree.append(f"{indent}{parts[-1]}")
+            
+    elif dir_config.files and not dir_config.extensions:
+        sorted_files = sorted(dir_config.files)
+        processed_dirs = set()
+        
+        for file_path in sorted_files:
+            parts = Path(file_path).parts
+            current_path = startpath
+            
+            for i, part in enumerate(parts[:-1]):
+                current_path = current_path / part
+                dir_level = i
+                if str(current_path) not in processed_dirs:
+                    indent = '│   ' * dir_level + '├── ' if dir_level > 0 else ''
+                    tree.append(f"{indent}{part}/")
+                    processed_dirs.add(str(current_path))
+            
+            file_level = len(parts) - 1
+            indent = '│   ' * file_level + '├── '
+            tree.append(f"{indent}{parts[-1]}")
+    else:
+        for root, dirs, files in os.walk(startpath):
+            root_path = Path(root)
+            dirs[:] = [d for d in dirs if not should_exclude_dir(
+                root_path / d, dir_config, gitignore_patterns, startpath)]
+                
+            level = len(Path(root).relative_to(startpath).parts)
+            indent = '│   ' * (level - 1) + '├── ' if level > 0 else ''
+            tree.append(f"{indent}{root_path.name}/")
+            
+            subindent = '│   ' * level + '├── '
+            for f in files:
+                file_path = root_path / f
+                if should_include_file(file_path, dir_config, gitignore_patterns, startpath):
+                    tree.append(f"{subindent}{f}")
+    
+    return tree
+
+def get_all_files(startpath: Path, dir_config: DirectoryConfig, 
+                  gitignore_patterns: List[str]) -> List[Path]:
+    """Get all files that should be included in summary."""
+    all_files = []
+    startpath = Path(startpath)
+    
+    if dir_config.dirs:
+        for dir_path in dir_config.dirs:
+            dir_full_path = startpath / dir_path
+            if not dir_full_path.is_relative_to(startpath):
+                continue
+            if not dir_full_path.exists() or not dir_full_path.is_dir():
+                logger.warning(f"Directory not found: {dir_path}")
+                continue
+                
+            for root, dirs, files in os.walk(dir_full_path):
+                root_path = Path(root)
+                dirs[:] = [d for d in dirs if not should_exclude_dir(
+                    root_path / d, dir_config, gitignore_patterns, startpath)]
+                    
+                for file in files:
+                    file_path = root_path / file
+                    if should_include_file(file_path, dir_config, gitignore_patterns, startpath):
+                        all_files.append(file_path)
+        return all_files
+    
+    if dir_config.files and not dir_config.extensions:
+        for file_path in dir_config.files:
+            full_path = startpath / file_path
+            if full_path.exists() and not should_ignore(full_path, gitignore_patterns, startpath):
+                all_files.append(full_path)
+    else:
+        for root, dirs, files in os.walk(startpath):
+            root_path = Path(root)
+            dirs[:] = [d for d in dirs if not should_exclude_dir(
+                root_path / d, dir_config, gitignore_patterns, startpath)]
+                
+            for file in files:
+                file_path = root_path / file
+                if should_include_file(file_path, dir_config, gitignore_patterns, startpath):
+                    all_files.append(file_path)
+    
+    return all_files
+
+def create_project_summary(dir_config: DirectoryConfig, output_dir: Path) -> None:
+    """Create project summary based on configuration."""
+    logger.info(f"Starting project summary creation for {dir_config.path}...")
+    
+    current_dir = Path(dir_config.path).resolve()
+    logger.info(f"Current directory: {current_dir}")
+
+    gitignore_path = current_dir / '.gitignore'
+    gitignore_patterns = parse_gitignore(gitignore_path)
+
+    output_filename = f"{dir_config.output_name}.txt" if dir_config.output_name else f"{current_dir.name}_summary.txt"
+    output_path = Path(output_dir) / output_filename
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        logger.info("Creating file structure...")
+        f.write("1. Project Structure:\n\n")
+        tree = get_file_tree(current_dir, dir_config, gitignore_patterns)
+        for line in tree:
+            f.write(line + '\n')
+        f.write('\n\n')
+
+        logger.info("Writing file contents...")
+        f.write("2. File Contents:\n\n")
+        all_files = get_all_files(current_dir, dir_config, gitignore_patterns)
+        
+        for i, file_path in enumerate(all_files, start=1):
+            rel_path = file_path.relative_to(current_dir)
+            f.write(f"File {i}: {rel_path}\n")
+            f.write('-' * 50 + '\n')
+            
+            try:
+                content = file_path.read_text(encoding='utf-8')
+                f.write(content)
+                logger.info(f"Processed file {i} of {len(all_files)}")
+            except Exception as e:
+                f.write(f"Error reading file: {str(e)}")
+            f.write('\n\n' + '=' * 50 + '\n\n')
+
+    logger.info(f"Project summary created in {output_path}")
+
+==================================================
+
+File 18: src/project_summary/cli.py
+--------------------------------------------------
+"""Command line interface for Project Summary."""
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+import yaml
+from . import __version__
+from .core import create_project_summary
+from .config import load_config, DirectoryConfig
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def main():
+    """Main entry point for the command line interface."""
+    parser = argparse.ArgumentParser(
+        description="Create project summaries based on a YAML configuration file."
+    )
+    
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"Project Summary v{__version__}"
+    )
+    
+    parser.add_argument(
+        "--config",
+        default="project_summary_config.yaml",
+        help="Path to the YAML configuration file."
+    )
+    
+    args = parser.parse_args()
+    config_path = Path(args.config)
+
+    try:
+        config = load_config(config_path)
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found at {config_path}")
+        sys.exit(1)
+    except yaml.YAMLError as e:
+        logger.error(f"Invalid YAML in configuration file {config_path}: {e}")
+        sys.exit(1)
+
+    output_dir = config.get("output_dir", "summaries")
+    if not Path(output_dir).is_absolute():
+        output_dir = str(Path.cwd() / output_dir)
+
+    for dir_config_dict in config.get("directories", []):
+        dir_config = DirectoryConfig(dir_config_dict)
+        
+        if not Path(dir_config.path).is_absolute():
+            dir_config.path = str(Path.cwd() / dir_config.path)
+            
+        create_project_summary(dir_config, output_dir)
+
+if __name__ == "__main__":
+    main()
+
+==================================================
+

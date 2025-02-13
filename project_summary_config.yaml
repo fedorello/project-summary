@@ -1,0 +1,10 @@
+output_dir: summaries/
+
+directories:
+  - path: .
+    extensions:
+      - .py
+      - .md
+    exclude_dirs:
+      - __pycache__
+    max_file_size: 1048576  # 1MB
