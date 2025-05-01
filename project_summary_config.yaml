@@ -2,9 +2,13 @@ output_dir: summaries/
 
 directories:
   - path: .
-    extensions:
+    extensions: # Extensions to include
       - .py
       - .md
-    exclude_dirs:
+    exclude_dirs: # Directories to exclude
       - __pycache__
+      - .git
+    include_no_extension: # Include specific files without extensions
+      - Dockerfile
+      - LICENSE
     max_file_size: 1048576  # 1MB
