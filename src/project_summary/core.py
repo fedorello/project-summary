@@ -44,25 +44,26 @@ def should_include_file(file_path: Path, dir_config: DirectoryConfig,
     Returns:
         True if the file should be included, False otherwise.
     """
-    # Log entry point only if debug is enabled to avoid spamming
-    if logger.isEnabledFor(logging.DEBUG):
-        try:
-            rel_path_debug = file_path.relative_to(root)
-            logger.debug(f"Checking file: '{rel_path_debug}' (Abs: {file_path})")
-        except ValueError:
-             logger.debug(f"Checking file outside root?: {file_path}")
-             rel_path_debug = file_path # Fallback for logging
+    # Early calculation of relative path
+    try:
+        # Calculate relative path once at the beginning
+        rel_path_str = str(file_path.relative_to(root))
+        logger.debug(f"Checking file: '{rel_path_str}' (Abs: {file_path})")
+    except ValueError:
+        # If we can't get a relative path, the file definitely doesn't qualify
+        logger.warning(f"Skipping file {file_path}: Cannot determine path relative to root {root}. Possible symlink or path issue?")
+        return False
 
     # Check 1: Is it a file?
     if not file_path.is_file():
-        # Add Debug Logging
-        logger.debug(f"Excluding '{rel_path_debug}': Not a file.")
+        # Use already calculated rel_path_str for logging
+        logger.debug(f"Excluding '{rel_path_str}': Not a regular file.")
         return False
         
     # Check 2: Is it ignored by gitignore?
     if should_ignore(file_path, gitignore_patterns, root):
         # Add Debug Logging
-        logger.debug(f"Excluding '{rel_path_debug}': Matched gitignore pattern.")
+        logger.debug(f"Excluding '{rel_path_str}': Matched gitignore pattern.")
         return False
         
     # Check 3: Is it too large?
@@ -70,7 +71,7 @@ def should_include_file(file_path: Path, dir_config: DirectoryConfig,
         file_size = file_path.stat().st_size
         if file_size > dir_config.max_file_size:
             # Warning is logged by default, add debug log for consistency
-            logger.debug(f"Excluding '{rel_path_debug}': Size ({file_size}) > max_size ({dir_config.max_file_size}).")
+            logger.debug(f"Excluding '{rel_path_str}': Size ({file_size}) > max_size ({dir_config.max_file_size}).")
             logger.warning(f"Skipping {file_path}: file size exceeds limit")
             return False
     except OSError as e:
@@ -81,17 +82,7 @@ def should_include_file(file_path: Path, dir_config: DirectoryConfig,
     # Check 4: Is its NAME explicitly excluded?
     if file_path.name in dir_config.exclude_files:
         # Add Debug Logging
-        logger.debug(f"Excluding '{rel_path_debug}': Name ('{file_path.name}') is in exclude_files.")
-        return False
-
-    # Calculate relative path (relative to the start path defined in config)
-    try:
-        rel_path_str = str(file_path.relative_to(root))
-    except ValueError:
-        # This case should ideally not happen if called from get_all_files with os.walk results
-        logger.warning(f"File {file_path} seems outside the root {root}. Skipping.")
-        # Add Debug Logging
-        logger.debug(f"Excluding '{file_path}': Cannot determine relative path to root '{root}'.")
+        logger.debug(f"Excluding '{rel_path_str}': Name ('{file_path.name}') is in exclude_files.")
         return False
 
     # Check 5: Is its RELATIVE PATH explicitly excluded?

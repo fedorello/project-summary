@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.2.1] - 2025-05-01 
+
+### Fixed
+- Resolved an `UnboundLocalError` in `should_include_file` that could occur during debug logging (`-v`) if calculating a file's relative path failed (e.g., due to unusual paths or symlinks). The relative path calculation is now done reliably upfront.
+
 ## [0.2.0] - 2025-05-01
 
 ### Added
